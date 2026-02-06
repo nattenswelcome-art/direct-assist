@@ -117,7 +117,7 @@ async def process_keyword(message: types.Message, state: FSMContext):
         semantics = await yandex_service.collect_semantics(keyword)
     except Exception as e:
         logger.error(f"Error collecting semantics: {e}")
-        await status_msg.edit_text("❌ Ошибка при работе с Yandex API. Проверьте логи.")
+        await status_msg.edit_text(f"❌ Ошибка API:\n{e}")
         return
 
     if not semantics:

@@ -36,8 +36,9 @@ class YandexService:
                 
                 data = await resp.json()
                 if "error_code" in data:
-                    logger.error(f"Yandex API Logic Error: {data['error_detail']}")
-                    return None
+                    err_detail = data['error_detail']
+                    logger.error(f"Yandex API Logic Error: {err_detail}")
+                    raise Exception(f"Yandex API: {err_detail}")
                     
                 return data.get("data")
 
@@ -52,6 +53,7 @@ class YandexService:
         }
         
         data = await self._request("CreateNewWordstatReport", params)
+        # If _request raises, it propagates up.
         if data:
             return int(data)
         return None
