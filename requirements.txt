@@ -1,0 +1,10 @@
+aiogram>=3.0.0
+gspread
+oauth2client
+pandas
+openai
+python-dotenv
+aiohttp
+loguru
+selenium
+webdriver-manager
