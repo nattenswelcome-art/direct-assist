@@ -50,16 +50,55 @@ class OpenAIService:
             # Fallback: everything in one group
             return {"Общая группа": keywords}
 
-    async def generate_ads(self, cluster_name: str, keywords: list[str]) -> list[dict]:
+    async def generate_seed_keywords(self, site_text: str) -> list[str]:
+        """
+        Analyzes site text and returns 3-5 seed keywords for Wordstat.
+        """
+        logger.info("Generating seed keywords from site text...")
+        
+        prompt = f"""
+        Analyze the following text from a landing page and suggest 3-5 broad, high-frequency seed keywords (masks) in Russian for Yandex Wordstat parsing.
+        The keywords should be general enough to collect a semantic core (e.g. 'пластиковые окна', 'ремонт квартир').
+        
+        Text:
+        {site_text[:3000]}
+        
+        Output JSON format:
+        {{ "phrases": ["keyword1", "keyword2", "keyword3"] }}
+        """
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a PPC specialist."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7
+            )
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            return data.get("phrases", [])
+        except Exception as e:
+            logger.error(f"Seed generation failed: {e}")
+            return []
+
+    async def generate_ads(self, cluster_name: str, keywords: list[str], context: str = None) -> list[dict]:
         """
         Generates 2 text ads for a given cluster.
         Returns data for columns: Title1, Title2, Text.
         """
         logger.info(f"Generating ads for cluster: {cluster_name}")
         
+        context_part = ""
+        if context:
+            context_part = f"\nUse the following website context for unique selling propositions (prices, benefits):\n{context[:1000]}..."
+
         prompt = f"""
         Write 2 options for Yandex Direct ads for the keyword group: "{cluster_name}".
         Main keywords in group: {', '.join(keywords[:10])}...
+        {context_part}
         
         Constraints:
         - Title 1 (Header): Max 35 chars. Important! Can end with '!', '?' or nothing.

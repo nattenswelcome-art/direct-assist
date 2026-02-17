@@ -70,12 +70,12 @@ class YandexService:
     async def delete_report(self, report_id: int):
         return await self._request("DeleteWordstatReport", report_id)
 
-    async def collect_semantics(self, seed_phrase: str) -> list[tuple[str, int]]:
+    async def collect_semantics(self, seed_phrases: list[str]) -> list[tuple[str, int]]:
         """
         High-level orchestration: Create -> Wait -> Download -> Delete.
         Returns: list of (keyword, shows)
         """
-        report_id = await self.create_report([seed_phrase])
+        report_id = await self.create_report(seed_phrases)
         if not report_id:
             logger.error("Failed to create report")
             return []
@@ -117,4 +117,35 @@ class YandexService:
         logger.error("Timeout waiting for report.")
         return []
 
+    async def collect_semantics_mock(self, seed_phrases: list[str]) -> list[tuple[str, int]]:
+        """
+        Returns mock data for testing purposes.
+        """
+        logger.info(f"Generating MOch semantics for: {seed_phrases}")
+        await asyncio.sleep(2) # Simulate delay
+        
+        base_keywords = [
+            ("купить", 5000),
+            ("цена", 3000),
+            ("отзывы", 1500),
+            ("москва", 2000),
+            ("недорого", 1000),
+            ("интернет магазин", 2500),
+            ("каталог", 1200),
+            ("заказать", 800),
+            ("стоимость", 700),
+            ("с доставкой", 600)
+        ]
+        
+        results = []
+        for seed in seed_phrases:
+            # Generate variations
+            for suffix, count in base_keywords:
+                results.append((f"{seed} {suffix}", count))
+            # Add the seed itself
+            results.append((seed, 10000))
+            
+        return results
+
 yandex_service = YandexService()
+

@@ -13,10 +13,10 @@ class SheetsService:
             logger.error(f"Failed to connect to Google Sheets: {e}")
             self.gc = None
 
-    async def create_report_sheet(self, user_id: int, project_name: str, data: dict):
+    async def create_report_sheet(self, user_id: int, project_name: str, campaign_data: list):
         """
-        Creates a new sheet and populates it with clustered data.
-        data: { "ClusterName": { "ads": [...], "keywords": [("kw", 123)...] } }
+        Creates a new sheet and populates it with campaign data.
+        campaign_data: List of dicts [{"group_name": str, "keywords": [], "ads": []}]
         """
         if not self.gc:
             logger.error("Google Client not initialized")
@@ -29,19 +29,21 @@ class SheetsService:
             master_id = getattr(config, 'GOOGLE_MASTER_SHEET_ID', None)
             
             if master_id:
-                # Open existing sheet
-                sh = self.gc.open_by_key(master_id)
+                try:
+                    sh = self.gc.open_by_key(master_id)
+                except Exception as e:
+                    logger.error(f"Failed to open master sheet: {e}")
+                    return None
+
                 # Create new tab
-                # Tab title max 100 chars
-                tab_title = f"{project_name[:50]}_{user_id}"
+                tab_title = f"{project_name[:30]}_{user_id}"
                 try:
                     ws = sh.add_worksheet(title=tab_title, rows=1000, cols=10)
                 except gspread.exceptions.APIError:
-                    # Fallback if exists: append timestamp
                     import time
                     ws = sh.add_worksheet(title=f"{tab_title}_{int(time.time())}", rows=1000, cols=10)
             else:
-                # Fallback to creation (will fail for free accounts)
+                # Fallback to creation
                 sh = self.gc.create(sheet_title)
                 sh.share(None, perm_type='anyone', role='reader')
                 ws = sh.sheet1
@@ -50,29 +52,28 @@ class SheetsService:
                 ws.update_title("Семантика")
             
             # Prepare rows
-            # Headers: Group, Keyword, Shows, Title1, Title2, Text
-            rows = [["Группа", "Ключевая фраза", "Частотность", "Заголовок 1", "Заголовок 2", "Текст"]]
+            # Headers: Group, Keyword, Headline 1, Headline 2, Text, Path
+            rows = [["Группа", "Ключевая фраза", "Заголовок 1", "Заголовок 2", "Текст", "Ссылка"]]
             
-            for cluster_name, content in data.items():
-                ads = content.get('ads', [])
-                keywords = content.get('keywords', [])
+            for group in campaign_data:
+                group_name = group.get("group_name", "")
+                keywords = group.get("keywords", [])
+                ads = group.get("ads", [])
                 
-                # Use first ad variant for the rows (or repeat for multiple?)
-                # Let's just put the ad next to the first keyword of the group, or replicate?
-                # Usually: Group header -> keywords.
+                # Use first ad variant
+                ad = ads[0] if ads else {}
                 
-                ad = ads[0] if ads else {"title1": "", "title2": "", "text": ""}
-                
-                for i, (kw, shows) in enumerate(keywords):
-                    # We print ad copy on every line? Or just first line of cluster?
-                    # Let's print on every line for easy import to Direct Commander
+                for kw in keywords:
+                    # If kw is tuple (kw, shows), extract kw
+                    phrase = kw[0] if isinstance(kw, (list, tuple)) else kw
+                    
                     rows.append([
-                        cluster_name,
-                        kw,
-                        shows,
-                        ad.get('title1', ''),
-                        ad.get('title2', ''),
-                        ad.get('text', '')
+                        group_name,
+                        phrase,
+                        ad.get('headline_1', ''),
+                        ad.get('headline_2', ''),
+                        ad.get('text', ''),
+                        ad.get('path', '')
                     ])
                     
             ws.update(rows)

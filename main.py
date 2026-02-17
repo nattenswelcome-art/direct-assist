@@ -1,5 +1,11 @@
 import asyncio
 from aiogram import Bot, Dispatcher
+import logging
+import sys
+
+# Configure standard logging for libraries
+logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+
 from config import config
 from utils.logger import logger
 
@@ -12,6 +18,7 @@ async def main():
         return
 
     logger.info("Starting Semantist Bot...")
+    logger.info(f"Bot Token loaded: {config.BOT_TOKEN[:5]}...{config.BOT_TOKEN[-5:]}")
     
     # Initialize Bot and Dispatcher
     bot = Bot(token=config.BOT_TOKEN)
@@ -22,7 +29,8 @@ async def main():
     register_routes(dp)
 
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
+        # await bot.delete_webhook(drop_pending_updates=True) # Commented out to debug
+        await bot.delete_webhook(drop_pending_updates=False) 
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Bot execution error: {e}")
